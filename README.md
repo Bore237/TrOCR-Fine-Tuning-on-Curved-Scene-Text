@@ -12,11 +12,12 @@ Ou sera stoker le code propre et versionné, reutilisable
 
 ### dataset.py
 * Charger les images
-* Extraire les crops de texte
-    * Lire les polygones annotés
-    * decouper la zone correxpondante
-    * renvoyer un crop + transcription
+* Charger les annotations depuis les fichiers text
+* construire un dictionnaire :
 * Appliquer les transformations (Data augmentation)
+```
+{ "image_path": "scut_train/006063.jpg", "text": "COLLEGE" }
+```
 
 ## Desscription du dossier notebooks
 Pour exploration et le test rapide
