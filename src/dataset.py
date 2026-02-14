@@ -1,4 +1,6 @@
 import os
+from PIL import Image
+
 
 class SCUTDataset(Dataset):
     def __init__(self, root_dir, ann_path, tokenizer, transforms=None):
@@ -34,5 +36,22 @@ class SCUTDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        # on chargera l’image ici
-        pass
+        sample = self.samples[idx]
+
+        img = Image.open(sample["image_path"]).convert("RGB")
+
+        if self.transforms:
+            pixel_values = self.transforms(img)
+        else:
+            pixel_values = img
+
+        labels = self.tokenizer(
+            sample["text"],
+            return_tensors="pt"
+        ).input_ids.squeeze(0)
+
+        return {
+            "pixel_values": pixel_values,
+            "labels": labels
+        }
+
