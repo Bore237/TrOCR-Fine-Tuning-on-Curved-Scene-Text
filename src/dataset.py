@@ -1,6 +1,6 @@
 import os
 from PIL import Image
-
+from torch.utils.data import Dataset
 
 class SCUTDataset(Dataset):
     def __init__(self, root_dir, ann_path, tokenizer, transforms=None):
@@ -31,7 +31,6 @@ class SCUTDataset(Dataset):
 
         return samples
 
-
     def __len__(self):
         return len(self.samples)
 
@@ -47,7 +46,10 @@ class SCUTDataset(Dataset):
 
         labels = self.tokenizer(
             sample["text"],
-            return_tensors="pt"
+            return_tensors="pt",
+            padding="max_length",
+            truncation=True,
+            max_length=256
         ).input_ids.squeeze(0)
 
         return {
