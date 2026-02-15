@@ -1,15 +1,16 @@
 import os
 from PIL import Image
 from torch.utils.data import Dataset
+import torch
 
 class SCUTDataset(Dataset):
-    def __init__(self, root_dir, ann_path, tokenizer, transforms=None):
+    def __init__(self, root_dir, ann_path, processor,  max_target_length = 128):
         self.root_dir = root_dir
         self.ann_path = ann_path
-        self.tokenizer = tokenizer
-        self.transforms = transforms
+        self.processor = processor
 
         self.samples = self.load_annotations()
+        self.max_target_length = max_target_length
 
     def load_annotations(self):
         samples = []
@@ -38,22 +39,19 @@ class SCUTDataset(Dataset):
         sample = self.samples[idx]
 
         img = Image.open(sample["image_path"]).convert("RGB")
+        
+        pixel_values =  self.processor(img, return_tensors='pt').pixel_values
 
-        if self.transforms:
-            pixel_values = self.transforms(img)
-        else:
-            pixel_values = img
-
-        labels = self.tokenizer(
+        labels = self.processor.tokenizer(
             sample["text"],
-            return_tensors="pt",
-            padding="max_length",
-            truncation=True,
-            max_length=256
-        ).input_ids.squeeze(0)
+            padding='max_length',
+            max_length=self.max_target_length
+        ).input_ids
+
+        labels = [label if label != self.processor.tokenizer.pad_token_id else -100 for label in labels]
 
         return {
-            "pixel_values": pixel_values,
-            "labels": labels
+            "pixel_values": pixel_values.squeeze(),
+            "labels": torch.tensor(labels)
         }
 
