@@ -2,6 +2,7 @@ data/
 outputs/
 checkpoints/
 __pycache__/
+trocr_env/
 *.pt
 *.bin
 *.ckpt

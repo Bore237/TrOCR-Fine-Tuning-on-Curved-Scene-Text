@@ -21,7 +21,7 @@ class SCUTDataset(Dataset):
         # parcourir les lignes
         for line in lines:
             image_name, text = line.strip().split("\t")
-            image_path = os.path.join(self.root_dir, image_name)
+            image_path = self.root_dir + image_name
 
             sample = {
                 "image_path": image_path,
