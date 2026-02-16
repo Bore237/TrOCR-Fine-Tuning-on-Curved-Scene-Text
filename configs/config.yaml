@@ -1,0 +1,52 @@
+# ============================
+# Training Configuration
+# ============================
+
+experiment:
+  name: "trocr_finetune_curved_text"
+  output_dir: "checkpoints"
+  seed: 42
+
+model:
+  name: "microsoft/trocr-base-stage1"
+  freeze_encoder: false
+
+data:
+  train_path: "data/train"
+  val_path: "data/val"
+  num_workers: 4
+  max_length: 64
+
+dataloader:
+  train_batch_size: 8
+  val_batch_size: 8
+  shuffle: true
+
+optimizer:
+  name: "AdamW"
+  lr: 5e-5
+  weight_decay: 0.01
+
+scheduler:
+  name: "linear"
+  warmup_ratio: 0.1
+
+training:
+  num_epochs: 10
+  gradient_accumulation_steps: 1
+  mixed_precision: true   # AMP activé
+  log_every: 20
+
+metrics:
+  save_best: true
+  monitor: "wer"   # ou "cer"
+  mode: "min"
+
+visualization:
+  enable: true
+  save_plots: true
+  plot_dir: "plots"
+  metrics_to_plot:
+    - train_loss
+    - val_wer
+    - val_cer
