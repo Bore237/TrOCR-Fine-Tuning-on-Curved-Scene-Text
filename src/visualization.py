@@ -40,3 +40,17 @@ class MetricLogger:
             save_path = os.path.join(self.save_dir, f"{metric}.png")
             plt.savefig(save_path)
             plt.close()
+
+
+"""
+from visualization import MetricLogger
+
+logger = MetricLogger(save_dir=config["visualization"]["plot_dir"])
+
+# dans la boucle d'entraînement :
+logger.log(train_loss=train_loss, val_wer=val_metrics["wer"], val_cer=val_metrics["cer"])
+
+# après la boucle :
+logger.plot(metrics_to_plot=config["visualization"]["metrics_to_plot"])
+
+"""
