@@ -4,13 +4,14 @@ from torch.utils.data import Dataset
 import torch
 
 class SCUTDataset(Dataset):
-    def __init__(self, root_dir, ann_path, processor,  max_target_length = 128):
+    def __init__(self, root_dir, ann_path, processor,  train_transforms, max_target_length = 128):
         self.root_dir = root_dir
         self.ann_path = ann_path
         self.processor = processor
 
         self.samples = self.load_annotations()
         self.max_target_length = max_target_length
+        self.transform = train_transforms
 
     def load_annotations(self):
         samples = []
@@ -39,7 +40,8 @@ class SCUTDataset(Dataset):
         sample = self.samples[idx]
 
         img = Image.open(sample["image_path"]).convert("RGB")
-        
+        if self.transform:
+            img = self.transform(img)
         pixel_values =  self.processor(img, return_tensors='pt').pixel_values
 
         labels = self.processor.tokenizer(
