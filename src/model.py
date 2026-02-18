@@ -1,7 +1,7 @@
 import torch
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 
-def load_model(model_name="microsoft/trocr-base-handwritten"):
+def load_model(model_name="microsoft/trocr-base-handwritten", verbose = False):
     # Load processor and model
     processor = TrOCRProcessor.from_pretrained(model_name)
     model = VisionEncoderDecoderModel.from_pretrained(model_name)
@@ -18,5 +18,13 @@ def load_model(model_name="microsoft/trocr-base-handwritten"):
         model.config.decoder_start_token_id = processor.tokenizer.cls_token_id
     else:
         model.config.decoder_start_token_id = processor.tokenizer.bos_token_id
+
+    # Total parameters and trainable parameters.
+    if verbose:
+        total_params = sum(p.numel() for p in model.parameters())
+        print(f"{total_params:,} total parameters.")
+        total_trainable_params = sum(
+            p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"{total_trainable_params:,} training parameters.")
 
     return processor, model, device
