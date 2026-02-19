@@ -54,3 +54,23 @@ def train_scale_one_epoch(model, processor, train_dataloader, optimizer, schedul
             "cer": all_cers / len(train_dataloader),
             "wer": all_wers / len(train_dataloader)
     }
+
+def evaluate_one_epoch(model, processor, val_loader, device, metrics):
+    model.eval()
+    all_wers = 0.0
+    all_cers = 0.0
+    
+    with torch.no_grad():
+        for batch in val_loader:
+            pixel_values = batch["pixel_values"].to(device)
+            label_ids = batch["labels"].to(device)
+
+            # Génération
+            pred_ids = model.generate(pixel_values)
+
+            # Calcul CER/WER
+            cer, wer = compute_ocr_metric(processor, pred_ids, label_ids, metrics)
+            all_wers += wer
+            all_cers += cer
+
+    return {"wer": all_wers / len(val_loader), "cer": all_cers / len(val_loader) }
