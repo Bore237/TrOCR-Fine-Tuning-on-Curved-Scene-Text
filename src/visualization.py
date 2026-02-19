@@ -9,38 +9,65 @@ class MetricLogger:
 
         self.history = {
             "train_loss": [],
+            "train_wer": [],
             "val_wer": [],
+            "train_cer": [],
             "val_cer": []
         }
 
-    def log(self, train_loss=None, val_wer=None, val_cer=None):
+    def log(self, train_loss=None, val_wer=None, val_cer=None,
+            train_wer=None, train_cer=None):
+
         if train_loss is not None:
             self.history["train_loss"].append(train_loss)
+        if train_wer is not None:
+            self.history["train_wer"].append(train_wer)
         if val_wer is not None:
             self.history["val_wer"].append(val_wer)
+        if train_cer is not None:
+            self.history["train_cer"].append(train_cer)
         if val_cer is not None:
             self.history["val_cer"].append(val_cer)
 
-    def plot(self, metrics_to_plot=None):
-        if metrics_to_plot is None:
-            metrics_to_plot = ["train_loss", "val_wer", "val_cer"]
 
-        for metric in metrics_to_plot:
-            values = self.history.get(metric, None)
-            if values is None or len(values) == 0:
-                continue
-
+    def plot(self):
+        # Plot Train Loss
+        if len(self.history["train_loss"]) > 0:
             plt.figure(figsize=(8, 5))
-            plt.plot(values, marker="o")
-            plt.title(metric.replace("_", " ").upper())
+            plt.plot(self.history["train_loss"], marker="o", label="Train Loss")
+            plt.title("TRAIN LOSS")
             plt.xlabel("Epoch")
-            plt.ylabel(metric)
+            plt.ylabel("Loss")
             plt.grid(True)
-
-            save_path = os.path.join(self.save_dir, f"{metric}.png")
-            plt.savefig(save_path)
+            plt.legend()
+            plt.savefig(os.path.join(self.save_dir, "train_loss.png"))
             plt.close()
 
+        # Plot WER (Train + Val)
+        if len(self.history["train_wer"]) > 0 and len(self.history["val_wer"]) > 0:
+            plt.figure(figsize=(8, 5))
+            plt.plot(self.history["train_wer"], marker="o", label="Train WER")
+            plt.plot(self.history["val_wer"], marker="o", label="Val WER")
+            plt.title("WER")
+            plt.xlabel("Epoch")
+            plt.ylabel("WER")
+            plt.grid(True)
+            plt.legend()
+            plt.savefig(os.path.join(self.save_dir, "wer.png"))
+            plt.close()
+
+        # Plot CER (Train + Val)
+        if len(self.history["train_cer"]) > 0 and len(self.history["val_cer"]) > 0:
+            plt.figure(figsize=(8, 5))
+            plt.plot(self.history["train_cer"], marker="o", label="Train CER")
+            plt.plot(self.history["val_cer"], marker="o", label="Val CER")
+            plt.title("CER")
+            plt.xlabel("Epoch")
+            plt.ylabel("CER")
+            plt.grid(True)
+            plt.legend()
+            plt.savefig(os.path.join(self.save_dir, "cer.png"))
+            plt.close()
 
 """
 from visualization import MetricLogger
