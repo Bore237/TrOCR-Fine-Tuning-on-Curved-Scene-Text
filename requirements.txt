@@ -4,3 +4,6 @@ datasets
 opencv-python
 Pillow
 pyyaml
+pyppeteer
+evaluate
+jiwer
