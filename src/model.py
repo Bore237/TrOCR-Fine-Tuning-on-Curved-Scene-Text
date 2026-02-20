@@ -1,13 +1,20 @@
 import torch
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 
-def load_model(model_name="microsoft/trocr-base-handwritten", verbose = False):
+def load_model(model_name="microsoft/trocr-base-handwritten", checkpoint_path=None, verbose = False):
     # Load processor and model
     processor = TrOCRProcessor.from_pretrained(model_name)
     model = VisionEncoderDecoderModel.from_pretrained(model_name)
 
     # Ensure device
     device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # Load our training model
+    if checkpoint_path:
+        state = torch.load(checkpoint_path,  map_location=device)
+        model.load_state_dict(state)
+        print(f"Checkpoint load locally from : {checkpoint_path}")
+
     model.to(device)
 
     # --- Fix: set model config IDs ---
