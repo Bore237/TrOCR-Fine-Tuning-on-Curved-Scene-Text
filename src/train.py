@@ -1,3 +1,4 @@
+import torch
 from torch.utils.data import DataLoader
 from src import SCUTDataset
 import yaml
@@ -40,7 +41,7 @@ def main(config_path):
         train_transforms = None
     )
     # -----------------------------
-    # 3. DataLoaders
+    # DataLoaders
     # -----------------------------
     train_dataloader = DataLoader(
         train_dataset, 
@@ -61,7 +62,7 @@ def main(config_path):
     )
 
     # -----------------------------
-    # 4. Optimizer + Scheduler
+    # Optimizer + Scheduler
     # -----------------------------
     if config["model"]["freeze_encoder"]:
         for param in model.encoder.parameters():
@@ -83,6 +84,11 @@ def main(config_path):
                                             num_warmup_steps=int(config["scheduler"]["warmup_ratio"] * num_training_steps), 
                                             num_training_steps=num_training_steps )
 
+    # -----------------------------
+    # 5. AMP Scaler
+    # -----------------------------
+
+    scaler = torch.amp.GradScaler(enabled=config["training"]["mixed_precision"])
 
 if __name__ == "__main__":
     config = ""
