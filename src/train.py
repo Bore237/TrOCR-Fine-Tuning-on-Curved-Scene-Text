@@ -3,6 +3,8 @@ from src import SCUTDataset
 import yaml
 from src import load_model
 from torchvision import transforms
+from torch.optim import AdamW
+from transformers import get_linear_schedule_with_warmup
 
 def main(config_path):
 
@@ -58,7 +60,29 @@ def main(config_path):
         persistent_workers=True
     )
 
-    
+    # -----------------------------
+    # 4. Optimizer + Scheduler
+    # -----------------------------
+    if config["model"]["freeze_encoder"]:
+        for param in model.encoder.parameters():
+                param.requires_grad = False
+
+    # Create optimizer only on trainable params
+    optimizer = AdamW(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=float(config["optimizer"]["lr_freeze"]),
+        weight_decay=config["optimizer"]["weight_decay"],
+        fused=True,
+    )
+
+    num_epochs = config["training"]["num_epochs"]
+    num_training_steps = num_epochs * len(train_dataloader)
+    scheduler = None
+    if config["training"]["num_epochs"]:
+        scheduler = get_linear_schedule_with_warmup( optimizer, 
+                                            num_warmup_steps=int(config["scheduler"]["warmup_ratio"] * num_training_steps), 
+                                            num_training_steps=num_training_steps )
+
 
 if __name__ == "__main__":
     config = ""
