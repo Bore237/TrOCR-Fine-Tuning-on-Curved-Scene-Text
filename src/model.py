@@ -1,37 +1,36 @@
 import torch
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 
-def load_model(model_name="microsoft/trocr-base-handwritten", checkpoint_path=None, verbose = False):
-    # Load processor and model
-    processor = TrOCRProcessor.from_pretrained(model_name)
-    model = VisionEncoderDecoderModel.from_pretrained(model_name)
-
-    # Ensure device
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    # Load our training model
+def load_model(model_name="microsoft/trocr-small-printed", checkpoint_path=None, verbose=False):
+    # 1. Load from checkpoint if available, else load base
     if checkpoint_path:
-        state = torch.load(checkpoint_path,  map_location=device)
-        model.load_state_dict(state)
-        print(f"Checkpoint load locally from : {checkpoint_path}")
+        # Safer: loads config + weights + handles sharding automatically
+        model = VisionEncoderDecoderModel.from_pretrained(checkpoint_path)
+        processor = TrOCRProcessor.from_pretrained(checkpoint_path, use_fast=True)
+    else:
+        model = VisionEncoderDecoderModel.from_pretrained(model_name)
+        processor = TrOCRProcessor.from_pretrained(model_name, use_fast=True)
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
 
-    # --- Fix: set model config IDs ---
-    # Use tokenizer's pad_token_id
+    # 2. Critical Config for Seq2SeqTrainer
     model.config.pad_token_id = processor.tokenizer.pad_token_id
-    # Use tokenizer's cls_token_id (or bos_token_id if cls_token_id is None)
+    model.config.eos_token_id = processor.tokenizer.eos_token_id # Added this
+    
+    # Set decoder_start_token_id
     if processor.tokenizer.cls_token_id is not None:
         model.config.decoder_start_token_id = processor.tokenizer.cls_token_id
     else:
         model.config.decoder_start_token_id = processor.tokenizer.bos_token_id
 
-    # Total parameters and trainable parameters.
+    # 3. Essential for compute_metrics (predict_with_generate)
+    # This ensures the model uses the right settings during eval
+    model.config.vocab_size = model.config.decoder.vocab_size
+
     if verbose:
         total_params = sum(p.numel() for p in model.parameters())
-        print(f"{total_params:,} total parameters.")
-        total_trainable_params = sum(
-            p.numel() for p in model.parameters() if p.requires_grad)
-        print(f"{total_trainable_params:,} training parameters.")
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"Total Params: {total_params:,} | Trainable: {trainable_params:,}")
 
     return processor, model, device
