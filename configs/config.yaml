@@ -2,60 +2,23 @@
 # Training Configuration
 # ============================
 
-experiment:
-  name: "trocr_finetune_curved_text"
-  output_dir: "checkpoints"
-  seed: 42
+# ==============================
+# Dataset
+# ==============================
 
-model:
-  name: 'microsoft/trocr-small-handwritten'
-  freeze_encoder: true
-  unfreeze_epoch: 20
+image_train_dir: "/kaggle/input/datasets/borelgoudjou/scut-ctw1500/scut_data/scut_train"
+ann_train_dir: "/kaggle/input/datasets/borelgoudjou/scut-ctw1500/scut_data/scut_train.txt"
 
-data:
-  train_path: "/kaggle/input/datasets/borelgoudjou/scut-ctw1500/scut_data/scut_train/" #"data/scut_data/scut_train"
-  train_ann: "/kaggle/input/datasets/borelgoudjou/scut-ctw1500/scut_data/scut_train.txt" #"data/scut_data/scut_train.txt"
-  val_path: "/kaggle/input/datasets/borelgoudjou/scut-ctw1500/scut_data/scut_test/" #"data/scut_data/scut_test"
-  val_ann: "/kaggle/input/datasets/borelgoudjou/scut-ctw1500/scut_data/scut_test.txt" #"data/scut_data/scut_test.txt"
-  max_length: 128
+image_val_dir: "/kaggle/input/datasets/borelgoudjou/scut-ctw1500/scut_data/scut_test"
+ann_val_dir: "/kaggle/input/datasets/borelgoudjou/scut-ctw1500/scut_data/scut_test.txt"
+num_sample: 100
 
-dataloader:
-  train_batch_size: 16
-  val_batch_size: 16
-  shuffle: true
-  num_workers: 4
-
-optimizer:
-  name: "AdamW"
-  lr_freeze: 5e-5
-  lr_unfreeze: 3e-5
-  weight_decay: 0.01
-
-scheduler:
-  name: "linear"
-  warmup_ratio: 0.1
-
-training:
-  num_epochs: 30
-  gradient_accumulation_steps: 1
-  mixed_precision: True   # AMP activé
-  log_every: 20
-
-early_stopping:
-  enable: true
-  patience: 5
-  min_delta: 0.3
-
-metrics:
-  save_best: true
-  monitor: "cer"   # ou "wer"
-  mode: "min"
-
-visualization:
-  enable: true
-  save_plots: true
-  plot_dir: "plots"
-  metrics_to_plot:
-    - train_loss
-    - val_wer
-    - val_cer
+# ==============================
+# Model
+# ==============================
+model_name: "microsoft/trocr-small-printed"
+max_length_pred: 128
+num_beams : 2
+show_number_parameter: True
+checkpoint_path: ""
+freeze_encoder: True
