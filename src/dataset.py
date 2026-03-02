@@ -3,14 +3,20 @@ from torch.utils.data import Dataset
 import torch
 
 class SCUTDataset(Dataset):
-    def __init__(self, root_dir, ann_path, processor, train_transforms=None, max_target_length=160, data_collator = True):
+    def __init__(self, root_dir, ann_path, processor, 
+                train_transforms=None, max_target_length=128, 
+                num_sample = None, data_collator = False):
+        
         self.root_dir = root_dir
         self.ann_path = ann_path
         self.processor = processor
         self.max_target_length = max_target_length
         self.transform = train_transforms
-        self.samples = self.load_annotations()
         self.data_collator =  data_collator
+        if num_sample:
+            self.samples = self.load_annotations()[:num_sample]
+        else:
+            self.samples = self.load_annotations()
 
     def load_annotations(self):
         samples = []
