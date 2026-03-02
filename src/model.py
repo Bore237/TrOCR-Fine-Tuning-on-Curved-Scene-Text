@@ -1,10 +1,10 @@
 import torch
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 
-def load_model(model_name="microsoft/trocr-small-printed", checkpoint_path=None, verbose=False):
-    # 1. Load from checkpoint if available, else load base
+def load_model(model_name="microsoft/trocr-small-printed", max_length=128, num_beams = 2, checkpoint_path=None, verbose=False):
+
+    # Load model + processor
     if checkpoint_path:
-        # Safer: loads config + weights + handles sharding automatically
         model = VisionEncoderDecoderModel.from_pretrained(checkpoint_path)
         processor = TrOCRProcessor.from_pretrained(checkpoint_path, use_fast=True)
     else:
@@ -14,19 +14,23 @@ def load_model(model_name="microsoft/trocr-small-printed", checkpoint_path=None,
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
 
-    # 2. Critical Config for Seq2SeqTrainer
+    # Align special tokens
     model.config.pad_token_id = processor.tokenizer.pad_token_id
-    model.config.eos_token_id = processor.tokenizer.eos_token_id # Added this
-    
-    # Set decoder_start_token_id
-    if processor.tokenizer.cls_token_id is not None:
-        model.config.decoder_start_token_id = processor.tokenizer.cls_token_id
-    else:
-        model.config.decoder_start_token_id = processor.tokenizer.bos_token_id
+    model.config.bos_token_id = processor.tokenizer.bos_token_id
+    model.config.eos_token_id = processor.tokenizer.eos_token_id
+    model.config.decoder_start_token_id = processor.tokenizer.cls_token_id
 
-    # 3. Essential for compute_metrics (predict_with_generate)
-    # This ensures the model uses the right settings during eval
-    model.config.vocab_size = model.config.decoder.vocab_size
+    # Resize decoder embeddings if needed
+    if model.config.decoder.vocab_size != processor.tokenizer.vocab_size:
+        model.decoder.resize_token_embeddings(processor.tokenizer.vocab_size)
+        model.config.decoder.vocab_size = processor.tokenizer.vocab_size
+        model.config.vocab_size = processor.tokenizer.vocab_size
+
+    # Generation config
+    model.generation_config.max_length = max_length
+    model.generation_config.num_beams = num_beams
+    model.generation_config.early_stopping = True # Stoppe la génération si EOS est produit pour tous les beams.
+    #model.generation_config.no_repeat_ngram_size = 3
 
     if verbose:
         total_params = sum(p.numel() for p in model.parameters())
