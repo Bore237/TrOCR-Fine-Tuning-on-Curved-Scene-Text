@@ -3,93 +3,107 @@ from torch.utils.data import DataLoader
 from src import SCUTDataset
 import yaml
 from src import load_model
-from torchvision import transforms
-from torch.optim import AdamW
-from transformers import get_linear_schedule_with_warmup
+from src.train_utils import wapper_compute_metrics, LrLoggerCallback, collate_fn
+from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
 
-def main(config_path):
 
-      # -----------------------------
+def train_trocr(config_path, trainer_config, metrics_fn, train_callbacks = None, trocr_transforms = None):
+
+    # -----------------------------
     # Load config path
     # -----------------------------
     with open(config_path, "r") as f: 
-        config = yaml.safe_load(f)
+        configs = yaml.safe_load(f)
+        
     # -----------------------------
     # Load model + processor
     # -----------------------------
-    processor, model, device = load_model(model_name = config["model"]['name'], verbose = True)
+    processor, model, device = load_model(model_name = configs["model_name"], 
+                                            max_length=configs["max_length_pred"], 
+                                            num_beams = configs["num_beams"],
+                                            verbose = configs["show_number_parameter"],
+                                            checkpoint_path = configs["checkpoint_path"]
+                                        )
+    # Geler tout l'encodeur
+    if configs["freeze_encoder"]:
+        for param in model.encoder.parameters():
+            param.requires_grad = False
 
     # -----------------------------
-    # 2. Load datasets
+    # Load datasets
     # -----------------------------
-    train_transforms = transforms.Compose([
-        transforms.ColorJitter(brightness=.5, hue=.3),
-        transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
-    ])
-
     train_dataset = SCUTDataset(
-        root_dir = config["data"]["train_path"],    
-        ann_path = config["data"]["train_ann"],
-        processor = processor,
-        train_transforms = train_transforms
+        root_dir=configs["image_train_dir"],    
+        ann_path= configs["ann_train_dir"],
+        processor= processor,
+        max_target_length = configs["max_length_pred"],  
+        num_sample = configs["num_sample"],
+        train_transforms = trocr_transforms
     )
-
+    
     val_dataset = SCUTDataset(
-        root_dir = config["data"]["val_path"],     
-        ann_path = config["data"]["val_ann"],
-        processor = processor,
+        root_dir=configs["image_val_dir"],     
+        ann_path= configs["ann_val_dir"],
+        processor= processor,
+        max_target_length = configs["max_length_pred"],
+        num_sample = configs["num_sample"],
         train_transforms = None
     )
+
     # -----------------------------
-    # DataLoaders
+    # Metric, loss and optimizers
     # -----------------------------
-    train_dataloader = DataLoader(
-        train_dataset, 
-        batch_size= config["dataloader"]["train_batch_size"], 
-        shuffle=config["dataloader"]["shuffle"],
-        num_workers=config["dataloader"]["num_workers"],
-        pin_memory=True,
-        persistent_workers=True
+    metrics_fn = metrics_fn(processor)
+
+    generation_config = GenerationConfig(
+        max_length=configs["max_length_pred"],
+        num_beams=configs["num_beams"],
+        early_stopping=True,
+        pad_token_id=processor.tokenizer.pad_token_id,
+        bos_token_id=processor.tokenizer.bos_token_id,
+        eos_token_id=processor.tokenizer.eos_token_id,
+        #no_repeat_ngram_size=0,   
     )
 
-    val_dataloader = DataLoader(
-        val_dataset, 
-        batch_size= config["dataloader"]["val_batch_size"], 
-        shuffle=False,
-        num_workers=config["dataloader"]["num_workers"],
-        pin_memory=True,
-        persistent_workers=True
+    trainer_config.generation_config = generation_config
+
+    # -----------------------------
+    # Training Loop
+    # -----------------------------
+    trainer = Seq2SeqTrainer(
+        model=model,
+        args=trainer_config,
+        train_dataset=train_dataset,
+        eval_dataset=val_dataset,
+        processing_class=processor.tokenizer,
+        data_collator=collate_fn,
+        compute_metrics=metrics_fn,
+        callbacks=train_callbacks,
     )
 
-    # -----------------------------
-    # Optimizer + Scheduler
-    # -----------------------------
-    if config["model"]["freeze_encoder"]:
-        for param in model.encoder.parameters():
-                param.requires_grad = False
-
-    # Create optimizer only on trainable params
-    optimizer = AdamW(
-        filter(lambda p: p.requires_grad, model.parameters()),
-        lr=float(config["optimizer"]["lr_freeze"]),
-        weight_decay=config["optimizer"]["weight_decay"],
-        fused=True,
-    )
-
-    num_epochs = config["training"]["num_epochs"]
-    num_training_steps = num_epochs * len(train_dataloader)
-    scheduler = None
-    if config["training"]["num_epochs"]:
-        scheduler = get_linear_schedule_with_warmup( optimizer, 
-                                            num_warmup_steps=int(config["scheduler"]["warmup_ratio"] * num_training_steps), 
-                                            num_training_steps=num_training_steps )
-
-    # -----------------------------
-    # 5. AMP Scaler
-    # -----------------------------
-
-    scaler = torch.amp.GradScaler(enabled=config["training"]["mixed_precision"])
+    return trainer, model, train_dataset
 
 if __name__ == "__main__":
-    config = ""
-    main(config)
+    config_path = ""
+    train_callbacks = [LrLoggerCallback()]
+
+    training_args = Seq2SeqTrainingArguments(
+        output_dir="./trocr_finetuned",
+        logging_dir="./logs",
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
+        learning_rate=5e-5,
+        num_train_epochs= 10,
+        fp16=True,
+        predict_with_generate=True,
+        metric_for_best_model="cer",
+        greater_is_better=False, 
+        save_total_limit=1,
+    )
+
+    trainers, models, train_dataset = train_trocr(config_path = config_path, 
+                                                trocr_transforms = None, 
+                                                trainer_config = training_args, 
+                                                train_callbacks = train_callbacks, 
+                                                metrics_fn = wapper_compute_metrics
+                                            )
